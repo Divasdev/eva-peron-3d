@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Eva Perón in 3D</title>
+<style>
+  :root {
+    --bg: #f4f2ee;
+    --bg-edge: #e6e2da;
+    --fg: #1d1b18;
+    --muted: #6f6a62;
+    --glass: rgba(255, 255, 255, 0.55);
+    --glass-border: rgba(255, 255, 255, 0.8);
+    --glass-shadow: 0 8px 30px rgba(40, 32, 20, 0.12);
+    --chip: rgba(29, 27, 24, 0.07);
+    --chip-on: #1d1b18;
+    --chip-on-fg: #f4f2ee;
+    --accent: #8a6a43;
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1a18;
+    --bg-edge: #0f0e0d;
+    --fg: #efebe4;
+    --muted: #9b958b;
+    --glass: rgba(40, 38, 35, 0.55);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    --chip: rgba(255, 255, 255, 0.08);
+    --chip-on: #efebe4;
+    --chip-on-fg: #1b1a18;
+    --accent: #c9a77a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(ellipse at 50% 42%, var(--bg) 35%, var(--bg-edge) 100%);
+    background-color: var(--bg);
+    color: var(--fg);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .3s;
+  }
+  canvas { display: block; position: fixed; inset: 0; touch-action: none; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+  header {
+    position: fixed; top: 20px; left: 24px; right: 24px;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    pointer-events: none;
+  }
+  h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  h1 small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .hint { color: var(--muted); font-size: 13px; text-align: right; }
+  .panel {
+    position: fixed; left: 16px; right: 16px; bottom: max(20px, env(safe-area-inset-bottom));
+    width: fit-content; margin-inline: auto;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
+    padding: 8px 10px; max-width: calc(100vw - 32px);
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 999px; box-shadow: var(--glass-shadow);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
+  }
+  .seg { display: flex; background: var(--chip); border-radius: 999px; padding: 3px; }
+  button {
+    font: inherit; color: var(--fg); background: transparent; border: 0; cursor: pointer;
+    padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+  }
+  button:hover { background: var(--chip); }
+  .seg button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-fg); }
+  .toggle[aria-pressed="true"] { color: var(--accent); }
+  label { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  input[type=range] { width: 110px; accent-color: var(--accent); }
+  .status {
+    position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none;
+    color: var(--muted); font-size: 13px;
+  }
+  .stats { position: fixed; left: 24px; bottom: 24px; color: var(--muted); font-size: 12px; pointer-events: none; }
+  body.noui header, body.noui .panel, body.noui .stats, body.noui .status { display: none; }
+  @media (max-width: 760px) { .stats { display: none; } }
+  @media (max-width: 560px) {
+    header { flex-direction: column; gap: 2px; left: 16px; right: 16px; }
+    .hint { text-align: left; }
+    .panel { border-radius: 20px; gap: 6px; bottom: 16px; }
+    input[type=range] { width: 80px; }
+    button { padding: 6px 9px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Eva Perón <small>3D portrait</small></h1>
+  <span class="hint">Drag to rotate · scroll or pinch to zoom · right-drag or two fingers to pan</span>
+</header>
+<div class="status" id="status">Loading model…</div>
+<div class="stats" id="stats"></div>
+<div class="panel">
+  <div class="seg" role="group" aria-label="Surface">
+    <button id="mPhoto" aria-pressed="true">Photo</button>
+    <button id="mClay" aria-pressed="false">Clay</button>
+  </div>
+  <div class="seg" role="group" aria-label="View">
+    <button id="vFront">Front</button>
+    <button id="vThree" aria-pressed="true">¾</button>
+    <button id="vSide">Side</button>
+    <button id="vBack">Back</button>
+  </div>
+  <label>Light <input id="light" type="range" min="-90" max="90" value="-35"></label>
+  <button id="sway" class="toggle" aria-pressed="false">Turn</button>
+  <button id="theme" class="toggle" aria-pressed="false">Dark</button>
+  <button id="reset">Reset</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// options in the URL hash, e.g. #view=front&mode=clay&yaw=40&ui=0&src=https://example.com/model.glb
+const hash = Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+if (hash.ui === '0') document.body.classList.add('noui');
+const SRC = hash.src || 'eva_peron.glb';
+const $ = id => document.getElementById(id);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+const camera = new THREE.PerspectiveCamera(24, innerWidth / innerHeight, 0.01, 20);
+const key = new THREE.DirectionalLight(0xfff6ea, 1.6);
+const fill = new THREE.HemisphereLight(0xfffaf2, 0x6b6257, 0.55);
+scene.add(key, key.target, fill);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.screenSpacePanning = true;
+
+const clayMat = new THREE.MeshStandardMaterial({ color: 0xa89f93, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.5 });
+const photoMats = new Map();
+let model = null, focus = new THREE.Vector3(), radius = 0.2, viewYaw = -28;
+
+function setView(yawDeg, pitchDeg = 4, distScale = 1) {
+  viewYaw = yawDeg;
+  const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const fitH = radius / tanHalf, fitW = radius / (tanHalf * camera.aspect);
+  const dist = Math.max(fitH, fitW) * 1.15 * distScale;
+  const a = THREE.MathUtils.degToRad(yawDeg), e = THREE.MathUtils.degToRad(pitchDeg);
+  controls.target.copy(focus);
+  camera.position.set(focus.x + dist * Math.sin(a) * Math.cos(e), focus.y + dist * Math.sin(e),
+                      focus.z + dist * Math.cos(a) * Math.cos(e));
+  controls.minDistance = dist * 0.25; controls.maxDistance = dist * 4;
+  controls.update();
+  for (const [id, y] of [['vFront', 0], ['vThree', -28], ['vSide', -90], ['vBack', 180]])
+    $(id).setAttribute('aria-pressed', String(Math.abs(y - yawDeg) < 1));
+}
+
+function setLight(deg) {
+  // key light circles the head at upper left/right; follows the slider
+  const a = THREE.MathUtils.degToRad(+deg);
+  key.position.set(focus.x + Math.sin(a) * 2, focus.y + 1.4, focus.z + Math.cos(a) * 2);
+  key.target.position.copy(focus);
+}
+
+const partColors = { skin: 0xe07a5f, teeth: 0xf2cc8f, eyes: 0x3d405b, hair: 0x81b29a, coat: 0x9a8c98 };
+function setMode(m) {
+  if (!model) return;
+  model.traverse(o => {
+    if (!o.isMesh) return;
+    if (m === 'parts') o.material = new THREE.MeshStandardMaterial({ color: partColors[o.name] ?? 0x888888, roughness: 0.8, side: THREE.DoubleSide });
+    else o.material = m === 'clay' ? clayMat : photoMats.get(o);
+  });
+  $('mPhoto').setAttribute('aria-pressed', String(m !== 'clay'));
+  $('mClay').setAttribute('aria-pressed', String(m === 'clay'));
+}
+function setTheme(th) {
+  document.documentElement.dataset.theme = th;
+  $('theme').textContent = th === 'dark' ? 'Light' : 'Dark';
+}
+let sway = false, swayT = 0, swayBase = 0;
+function setSway(on) { sway = on; swayT = 0; swayBase = viewYaw; $('sway').setAttribute('aria-pressed', String(on)); }
+
+new GLTFLoader().load(SRC, gltf => {
+  model = gltf.scene;
+  scene.add(model);
+  let tris = 0;
+  model.traverse(o => {
+    if (!o.isMesh) return;
+    o.material.envMapIntensity = 0.75;
+    photoMats.set(o, o.material);
+    tris += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3;
+  });
+  // frame the head (skin + hair), not the whole bust
+  const box = new THREE.Box3();
+  for (const n of ['skin', 'hair']) { const o = model.getObjectByName(n); if (o) box.expandByObject(o); }
+  if (box.isEmpty()) box.setFromObject(model);
+  const headBox = box.clone(); headBox.min.y = Math.max(headBox.min.y, headBox.max.y - 0.30);
+  headBox.getCenter(focus); focus.y -= 0.02;
+  radius = headBox.getSize(new THREE.Vector3()).length() * 0.42;
+  $('status').remove();
+  $('stats').textContent = `${Math.round(tris / 1000)}k triangles · ${SRC.split('/').pop()}`;
+  const views = { front: 0, three: -28, side: -90, back: 180, left: 90 };
+  setMode(hash.mode || 'photo');
+  setLight(hash.light ?? $('light').value); if (hash.light) $('light').value = hash.light;
+  setView(hash.yaw !== undefined ? +hash.yaw : (views[hash.view] ?? -28), hash.pitch !== undefined ? +hash.pitch : 4,
+          hash.zoom ? 1 / +hash.zoom : 1);
+  setSway(hash.turn === '1');
+  document.body.dataset.ready = '1';
+}, undefined, err => { $('status').textContent = 'Could not load ' + SRC + ' — ' + (err.message || err); });
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+$('mPhoto').onclick = () => setMode('photo');
+$('mClay').onclick = () => setMode('clay');
+$('vFront').onclick = () => setView(0);
+$('vThree').onclick = () => setView(-28);
+$('vSide').onclick = () => setView(-90);
+$('vBack').onclick = () => setView(180);
+$('light').oninput = e => setLight(e.target.value);
+$('sway').onclick = () => setSway(!sway);
+$('theme').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+$('reset').onclick = () => { setSway(false); setView(-28); $('light').value = -35; setLight(-35); };
+controls.addEventListener('start', () => { if (sway) setSway(false); });
+setTheme(hash.theme || 'light');
+
+let last = performance.now();
+renderer.setAnimationLoop(now => {
+  const dt = Math.min((now - last) / 1000, 0.1); last = now;
+  if (sway && model) {
+    swayT += dt;
+    const a = THREE.MathUtils.degToRad(swayBase) + swayT * 0.45;
+    const off = camera.position.clone().sub(controls.target);
+    const r = Math.hypot(off.x, off.z);
+    camera.position.set(controls.target.x + r * Math.sin(a), camera.position.y, controls.target.z + r * Math.cos(a));
+  }
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
