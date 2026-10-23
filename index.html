@@ -74,9 +74,9 @@
     position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none;
     color: var(--muted); font-size: 13px;
   }
-  .stats { position: fixed; left: 24px; bottom: 24px; color: var(--muted); font-size: 12px; pointer-events: none; }
+  .stats { position: fixed; left: 24px; top: 44px; color: var(--muted); font-size: 12px; pointer-events: none; }
   body.noui header, body.noui .panel, body.noui .stats, body.noui .status { display: none; }
-  @media (max-width: 760px) { .stats { display: none; } }
+  @media (max-width: 560px) { .stats { display: none; } }
   @media (max-width: 560px) {
     header { flex-direction: column; gap: 2px; left: 16px; right: 16px; }
     .hint { text-align: left; }
