@@ -132,16 +132,17 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserv
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+const TM = { aces: THREE.ACESFilmicToneMapping, agx: THREE.AgXToneMapping, none: THREE.NoToneMapping };
+renderer.toneMapping = TM[hash.tm] ?? THREE.NoToneMapping;
+renderer.toneMappingExposure = +(hash.exposure ?? 1.0);
 document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
 const camera = new THREE.PerspectiveCamera(24, innerWidth / innerHeight, 0.01, 20);
-const key = new THREE.DirectionalLight(0xfff6ea, 1.6);
-const fill = new THREE.HemisphereLight(0xfffaf2, 0x6b6257, 0.55);
+const key = new THREE.DirectionalLight(0xfff6ea, +(hash.key ?? 1.35));
+const fill = new THREE.HemisphereLight(0xfffaf2, 0x6b6257, +(hash.fill ?? 0.5));
 scene.add(key, key.target, fill);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -199,7 +200,11 @@ new GLTFLoader().load(SRC, gltf => {
   let tris = 0;
   model.traverse(o => {
     if (!o.isMesh) return;
-    o.material.envMapIntensity = 0.75;
+    o.material.envMapIntensity = +(hash.env ?? 0.55);
+    if (o.material.map) {             // sharper texture at grazing angles
+      o.material.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      o.material.map.needsUpdate = true;
+    }
     photoMats.set(o, o.material);
     tris += o.geometry.index ? o.geometry.index.count / 3 : o.geometry.attributes.position.count / 3;
   });
@@ -208,7 +213,7 @@ new GLTFLoader().load(SRC, gltf => {
   for (const n of ['skin', 'hair']) { const o = model.getObjectByName(n); if (o) box.expandByObject(o); }
   if (box.isEmpty()) box.setFromObject(model);
   const headBox = box.clone(); headBox.min.y = Math.max(headBox.min.y, headBox.max.y - 0.30);
-  headBox.getCenter(focus); focus.y -= 0.02;
+  headBox.getCenter(focus); focus.y -= 0.02 - +(hash.dy ?? 0);
   radius = headBox.getSize(new THREE.Vector3()).length() * 0.42;
   $('status').remove();
   $('stats').textContent = `${Math.round(tris / 1000)}k triangles · ${SRC.split('/').pop()}`;
