@@ -13,11 +13,21 @@ any glTF 2.0 viewer (three.js, model-viewer, Blender, Babylon.js).
 
 The head is the ICT FaceKit morphable head, fitted to MediaPipe face landmarks in the
 reference photograph (and, for depth, in three more authentic photographs of her), then
-corrected vertex by vertex so the features land on the photo exactly. The photo is
-projected onto the fitted head as the texture; the side the photo cannot see is completed
-by mirroring. Hair (swept back into a loose roll, lengths to the shoulders) and the coat
-are modelled as signed-distance volumes. Colour comes from a period colour portrait;
-brightness stays exactly as in the photograph.
+corrected vertex by vertex so the features land on the photo exactly. The head is posed as
+in the photograph (turned toward her left, chin slightly up), so the default front view
+matches the picture.
+
+The texture is the photograph itself, projected onto the fitted head: dust and scratches
+removed, and the face sharpened with a face-restoration network (GPEN), blended at 85% and
+checked with two face-recognition models to make sure her features did not change. The side
+the photo cannot see is completed by mirroring. Colour comes from period colour portraits;
+brightness stays as in the photograph.
+
+Hair (swept back into a loose roll, lengths to the shoulders) and the clothes from the photo
+(an open light jacket with notched lapels over a buttoned shirt with a standing pointed
+collar) are modelled as signed-distance volumes. Hair strands are generated along the
+direction the hair is combed, and soft contact shadows are baked into the texture so the
+model looks right in any viewer's lighting.
 
 ## Credits
 

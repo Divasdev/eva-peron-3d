@@ -220,7 +220,7 @@ new GLTFLoader().load(SRC, gltf => {
   const views = { front: 0, three: -28, side: -90, back: 180, left: 90 };
   setMode(hash.mode || 'photo');
   setLight(hash.light ?? $('light').value); if (hash.light) $('light').value = hash.light;
-  setView(hash.yaw !== undefined ? +hash.yaw : (views[hash.view] ?? -28), hash.pitch !== undefined ? +hash.pitch : 4,
+  setView(hash.yaw !== undefined ? +hash.yaw : (views[hash.view] ?? 0), hash.pitch !== undefined ? +hash.pitch : 4,
           hash.zoom ? 1 / +hash.zoom : 1);
   setSway(hash.turn === '1');
   document.body.dataset.ready = '1';
